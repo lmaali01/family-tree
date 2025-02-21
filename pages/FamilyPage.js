@@ -154,6 +154,8 @@ export default function FamilyPage() {
                             '@media (max-width: 600px)': {
                                 height: '100vh', // Full screen on smaller devices
                                 padding: 1, // Reduce padding on mobile
+                                flexDirection: 'column',
+                                alignItems: 'center', // Center content on mobile
                             },
                         }}
                     >
@@ -167,10 +169,12 @@ export default function FamilyPage() {
                                 justifyContent: 'center',
                                 alignItems: 'center',
                                 marginBottom: '10px', // To give space between nodes
-                                width: familyData[0].children && familyData[0].children.length > 5 ? '100%' : '50%',
+                                width: '50%',
+                                flexDirection: 'column',
                                 '@media (max-width: 600px)': {
-                                    width: '100%', // Full width for small screens
+                                    width: '90%', // Full width for small screens
                                     flexDirection: 'column', // Stack the tree vertically
+                                    overflowX: 'hidden', // Hide horizontal overflow
                                 },
                             }}
                         >
