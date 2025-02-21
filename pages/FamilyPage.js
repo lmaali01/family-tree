@@ -143,7 +143,20 @@ export default function FamilyPage() {
                 {loading ? (
                     <CircularProgress />
                 ) : familyData.length > 0 ? (
-                    <Box sx={{ width: '100%', height: '80vh', display: 'flex', justifyContent: 'center' }}>
+                    <Box
+                        sx={{
+                            width: '100%',
+                            height: '80vh',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            overflow: 'auto', // Allow scrolling if the tree overflows
+                            padding: 2,
+                            '@media (max-width: 600px)': {
+                                height: '100vh', // Full screen on smaller devices
+                                padding: 1, // Reduce padding on mobile
+                            },
+                        }}
+                    >
                         <Tree
                             lineWidth={'2px'}
                             lineColor={'#0A74DA'}
@@ -154,7 +167,11 @@ export default function FamilyPage() {
                                 justifyContent: 'center',
                                 alignItems: 'center',
                                 marginBottom: '10px', // To give space between nodes
-                                width: '50%',
+                                width: familyData[0].children && familyData[0].children.length > 5 ? '100%' : '50%',
+                                '@media (max-width: 600px)': {
+                                    width: '100%', // Full width for small screens
+                                    flexDirection: 'column', // Stack the tree vertically
+                                },
                             }}
                         >
                             {/* Render the root node */}
