@@ -50,9 +50,12 @@ const CustomNode = ({ node, onClick }) => (
 
 export default function FamilyPage() {
     const [familyData, setFamilyData] = useState([]);
+    const [allFamilyData, setAllFamilyData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [thirdParent, setThirdParent] = useState(true); 
     const [expandedNodes, setExpandedNodes] = useState(new Set()); // Track which nodes are expanded
     const [showChildren, setShowChildren] = useState({}); // Track the visibility of children nodes
+    const [selectedNode, setSelectedNode] = useState(null);
 
     useEffect(() => {
         // Load the Eskander font only in the browser (client-side)
@@ -63,19 +66,20 @@ export default function FamilyPage() {
             document.head.appendChild(link);
         };
         loadFont();
-
         fetchFamilyData();
     }, []);
-
+    
     const fetchFamilyData = async () => {
         setLoading(true);
         const { data, error } = await supabase.from('family_tree').select('*');
         if (error) {
             console.error(error);
         } else {
+            console.log(data);
+            data.sort((a, b) => a.id - b.id);  // Sort data by id
             const formattedData = formatTreeData(data);
-            console.log('Formatted Family Data:', formattedData); // Log data structure
             setFamilyData(formattedData);
+            setAllFamilyData(formattedData);
         }
         setLoading(false);
     };
@@ -91,12 +95,10 @@ export default function FamilyPage() {
         const tree = [];
         data.forEach((item) => {
             if (item.parentid) {
-                // If the parent exists, push the current item to the parent's children array
                 if (map.has(item.parentid)) {
                     map.get(item.parentid).children.push(map.get(item.id));
                 }
             } else {
-                // If no parent, it is a root node
                 tree.push(map.get(item.id));
             }
         });
@@ -104,28 +106,63 @@ export default function FamilyPage() {
         return tree;
     };
 
-    // Recursive function to render nodes with children
     const renderTree = (nodes) => {
         return nodes.map((node) => {
-            const isExpanded = showChildren[node.id]; // Check if children are visible for this node
-
+            const isExpanded = showChildren[node.id];
             return (
                 <TreeNode key={node.id} label={<CustomNode node={node} onClick={handleNodeClick} />}>
-                    {/* Render the children if expanded */}
                     {isExpanded && node.children && node.children.length > 0 && renderTree(node.children)}
                 </TreeNode>
             );
         });
     };
 
-    // Handle node click to toggle visibility of children
+    function getThirdParent(node) {
+
+        console.log(`node: ${JSON.stringify(node)}`);
+        console.log(`parent_node: ${JSON.stringify(findNodeById(node.parentid, familyData))}`)
+
+        const firstParent = findNodeById(node.parentid, familyData);
+        if (!firstParent) return allFamilyData; // If no first parent, return an empty array
+
+        const secondParent = findNodeById(firstParent.parentid, familyData);
+        if (!secondParent) return allFamilyData; // If no second parent, return an empty array
+
+        const thirdParent = findNodeById(secondParent.parentid, familyData);
+        if (!thirdParent) return allFamilyData; // If no third parent, return an empty array
+
+        thirdParent.parentid = null;
+        //setThirdParent(thirdParent);
+        return [thirdParent]; // Return third parent as an array
+    }
+
+
+    function findNodeById(id, data) {
+        for (const parent of data) {
+            if (parent.id === id) return parent;
+            const child = findNodeById(id, parent.children || []);
+            if (child) return child;
+        }
+        return null;
+    }
+
     const handleNodeClick = (node) => {
-        setShowChildren((prev) => {
-            return {
-                ...prev,
-                [node.id]: !prev[node.id], // Toggle the visibility of children
-            };
-        });
+        // Reset familyData before updating it
+        setFamilyData([]);
+
+        // Get the third parent of the selected node
+        const nodesToRender = getThirdParent(node, allFamilyData);
+
+        // Set the selected node to the clicked node
+        setSelectedNode(node);
+
+        // Rebind the familyData with the third parent
+        setFamilyData(nodesToRender);
+
+        setShowChildren((prev) => ({
+            ...prev,
+            [node.id]: !prev[node.id], // Toggle visibility of the clicked node's children
+        }));
     };
 
     return (
@@ -149,14 +186,8 @@ export default function FamilyPage() {
                             height: '80vh',
                             display: 'flex',
                             justifyContent: 'center',
-                            overflow: 'auto', // Allow scrolling if the tree overflows
+                            overflow: 'auto',
                             padding: 2,
-                            '@media (max-width: 600px)': {
-                                height: '100vh', // Full screen on smaller devices
-                                padding: 1, // Reduce padding on mobile
-                                flexDirection: 'column',
-                                alignItems: 'center', // Center content on mobile
-                            },
                         }}
                     >
                         <Tree
@@ -168,17 +199,11 @@ export default function FamilyPage() {
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                marginBottom: '10px', // To give space between nodes
+                                marginBottom: '10px',
                                 width: '50%',
                                 flexDirection: 'column',
-                                '@media (max-width: 600px)': {
-                                    width: '90%', // Full width for small screens
-                                    flexDirection: 'column', // Stack the tree vertically
-                                    overflowX: 'hidden', // Hide horizontal overflow
-                                },
                             }}
                         >
-                            {/* Render the root node */}
                             {renderTree(familyData[0].children)}
                         </Tree>
                     </Box>
