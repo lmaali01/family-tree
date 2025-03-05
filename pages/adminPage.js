@@ -1,6 +1,27 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { TextField, Button, Container, Typography } from '@mui/material';
+import {
+    Container,
+    Typography,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Button,
+    TextField,
+    Paper,
+    IconButton,
+    CircularProgress,
+    Select,
+    MenuItem,
+    InputLabel,
+    FormControl,
+    FormHelperText
+} from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 export default function AdminPage() {
     const [nodes, setNodes] = useState([]);
@@ -18,7 +39,9 @@ export default function AdminPage() {
         if (error) {
             console.error(error);
         } else {
-            setNodes(data);
+            // Sort nodes by ID in ascending order
+            const sortedData = data.sort((a, b) => a.id - b.id);
+            setNodes(sortedData);
         }
         setLoading(false);
     };
@@ -41,8 +64,8 @@ export default function AdminPage() {
     };
 
     const handleAddNode = async () => {
-        if (!newNode.name || !newNode.image) {
-            alert('Please provide both name and image URL.');
+        if (!newNode.name) {
+            alert('Please provide a name.');
             return;
         }
 
@@ -52,7 +75,7 @@ export default function AdminPage() {
             .insert([
                 {
                     name: newNode.name,
-                    image: newNode.image,
+                    image: newNode.image || null, // Make image optional
                     parentid: newNode.parentid || null, // If no parent, set it as null
                 },
             ]);
@@ -66,47 +89,155 @@ export default function AdminPage() {
         setLoading(false);
     };
 
+    const handleDelete = async (id) => {
+        if (confirm('Are you sure you want to delete this node?')) {
+            setLoading(true);
+            const { error } = await supabase
+                .from('family_tree')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                console.error(error);
+            } else {
+                fetchNodes(); // Fetch updated list after deletion
+            }
+            setLoading(false);
+        }
+    };
+
     return (
         <Container>
-            <Typography variant="h4">Edit Family Tree</Typography>
+            <Typography variant="h4" gutterBottom>Manage Family Tree</Typography>
 
-            {/* Dropdown to select a node to edit */}
-            <select
-                onChange={(e) => {
-                    const nodeId = e.target.value;
-                    setSelectedNode(nodes.find((n) => n.id === nodeId) || null);
-                }}
-                value={selectedNode ? selectedNode.id : ''}
-                disabled={loading} // Disable select when loading
+            {/* Add New Node Section */}
+            <Typography variant="h5" sx={{ marginTop: 4 }}>Add New Node</Typography>
+            <TextField
+                label="Name"
+                value={newNode.name}
+                onChange={(e) => setNewNode({ ...newNode, name: e.target.value })}
+                fullWidth
+                margin="normal"
+            />
+            <TextField
+                label="Image URL (Optional)"
+                value={newNode.image}
+                onChange={(e) => setNewNode({ ...newNode, image: e.target.value })}
+                fullWidth
+                margin="normal"
+            />
+
+            {/* Dropdown to select parent */}
+            <FormControl fullWidth margin="normal">
+                <InputLabel id="parent-select-label">Select Parent (optional)</InputLabel>
+                <Select
+                    labelId="parent-select-label"
+                    value={newNode.parentid}
+                    onChange={(e) => setNewNode({ ...newNode, parentid: e.target.value })}
+                    label="Select Parent (optional)"
+                    style={{ backgroundColor: '#f0f0f0' }}
+                >
+                    <MenuItem value="">None</MenuItem>
+                    {nodes.map((node) => (
+                        <MenuItem key={node.id} value={node.id}>
+                            {node.id} - {node.name}
+                        </MenuItem>
+                    ))}
+                </Select>
+                <FormHelperText>Optional</FormHelperText>
+            </FormControl>
+
+            <Button
+                onClick={handleAddNode}
+                disabled={loading}
+                variant="contained"
+                color="secondary"
+                fullWidth
+                sx={{ marginTop: 2 }}
             >
-                <option value="">Select a node</option>
-                {nodes.map((node) => (
-                    <option key={node.id} value={node.id}>
-                        {node.name}
-                    </option>
-                ))}
-            </select>
+                {loading ? 'Adding...' : 'Add Node'}
+            </Button>
 
-            {/* Render the form to edit the selected node */}
+            {/* Table for Displaying Nodes */}
+            {loading ? (
+                <CircularProgress sx={{ marginTop: 4 }} />
+            ) : (
+                <TableContainer component={Paper} sx={{ marginTop: 4 }}>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>ID</TableCell>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Image</TableCell>
+                                <TableCell>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {nodes.map((node) => (
+                                <TableRow key={node.id}>
+                                    <TableCell>{node.id}</TableCell>
+                                    <TableCell>{node.name}</TableCell>
+                                    <TableCell>
+                                        {node.image ? (
+                                            <img
+                                                src={node.image}
+                                                alt={node.name}
+                                                style={{ width: 50, height: 50, borderRadius: '50%' }}
+                                            />
+                                        ) : (
+                                            <Typography variant="body2" color="textSecondary">No image</Typography>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        <IconButton
+                                            onClick={() => setSelectedNode(node)}
+                                            color="primary"
+                                            sx={{ marginRight: 1 }}
+                                        >
+                                            <EditIcon />
+                                        </IconButton>
+                                        <IconButton
+                                            onClick={() => handleDelete(node.id)}
+                                            color="secondary"
+                                        >
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            )}
+
+            {/* Edit Selected Node Section */}
             {selectedNode && (
                 <div>
+                    <Typography variant="h5" sx={{ marginTop: 4 }}>Edit Node</Typography>
+                    <TextField
+                        label="ID"
+                        value={selectedNode.id}
+                        disabled
+                        fullWidth
+                        margin="normal"
+                    />
                     <TextField
                         label="Name"
-                        value={selectedNode.name || ''}
+                        value={selectedNode.name}
                         onChange={(e) => setSelectedNode({ ...selectedNode, name: e.target.value })}
                         fullWidth
                         margin="normal"
                     />
                     <TextField
                         label="Image URL"
-                        value={selectedNode.image || ''}
+                        value={selectedNode.image}
                         onChange={(e) => setSelectedNode({ ...selectedNode, image: e.target.value })}
                         fullWidth
                         margin="normal"
                     />
                     <Button
                         onClick={handleSave}
-                        disabled={loading} // Disable save button when loading
+                        disabled={loading}
                         variant="contained"
                         color="primary"
                         fullWidth
@@ -116,50 +247,6 @@ export default function AdminPage() {
                     </Button>
                 </div>
             )}
-
-            {/* Loading state message */}
-            {loading && <Typography variant="body1">Loading...</Typography>}
-
-            <Typography variant="h5" sx={{ marginTop: 4 }}>Add New Node</Typography>
-
-            {/* Form to add a new node */}
-            <TextField
-                label="Name"
-                value={newNode.name}
-                onChange={(e) => setNewNode({ ...newNode, name: e.target.value })}
-                fullWidth
-                margin="normal"
-            />
-            <TextField
-                label="Image URL"
-                value={newNode.image}
-                onChange={(e) => setNewNode({ ...newNode, image: e.target.value })}
-                fullWidth
-                margin="normal"
-            />
-            <select
-                value={newNode.parentid}
-                onChange={(e) => setNewNode({ ...newNode, parentid: e.target.value })}
-                fullWidth
-                margin="normal"
-            >
-                <option value="">Select Parent (optional)</option>
-                {nodes.map((node) => (
-                    <option key={node.id} value={node.id}>
-                        {node.name}
-                    </option>
-                ))}
-            </select>
-            <Button
-                onClick={handleAddNode}
-                disabled={loading} // Disable add button when loading
-                variant="contained"
-                color="secondary"
-                fullWidth
-                sx={{ marginTop: 2 }}
-            >
-                {loading ? 'Adding...' : 'Add Node'}
-            </Button>
         </Container>
     );
 }
