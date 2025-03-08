@@ -14,8 +14,9 @@ const CustomNode = ({ node, onClick }) => (
             backgroundColor: '#afdafd', // White background for nodes
             padding: '6px 12px', // Reduced padding to make nodes smaller
             borderRadius: '20px',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            boxShadow: '4px 4px 6px rgba(0, 0, 0, 0.1)',
             textAlign: 'center',
+            height:'auto',
             cursor: 'pointer',
             fontFamily: 'sans-serif', // Apply Eskander font style
             color: '#333', // Dark text color
@@ -36,22 +37,22 @@ const CustomNode = ({ node, onClick }) => (
                 }}
             />
         )}
-        <img
+        {/* <img
             src="https://cdn-icons-png.flaticon.com/512/2815/2815428.png"
             alt="Icon"
             style={{
-                width: '24px', // Smaller icon
-                height: '24px',
+                width: '20px', // Smaller icon
+                height: '20px',
                 objectFit: 'contain',
                 marginBottom: '6px', // Space between the image and the text
             }}
-        />
+        /> */}
         <Typography
             variant="body2"
             style={{
                 fontWeight: 'bold', // Bold text
                 color: '#333',
-                fontSize: '18px', // Smaller font size for compact nodes
+                fontSize: '15px', // Smaller font size for compact nodes
                 lineHeight: '1.2',
                 fontFamily: 'revert-layer'
             }}
@@ -210,7 +211,6 @@ export default function FamilyPage() {
                 flexDirection="column"
                 py={4}
                 style={{
-                    backgroundImage: 'url("https://img.freepik.com/premium-photo/al-aqsa-mosque-islamic-shrine-located-temple-mount-jerusalem-israel-realistic-3d-background_524159-3927.jpg?w=1480")', // Reference the image from the public folder
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     height: 'auto',
@@ -232,27 +232,25 @@ export default function FamilyPage() {
                         zIndex: -1,
                     }}
                 />
-
                 <img
                     src="https://github.com/lmaali01/family-tree/blob/main/public/Screen%20Shot%202025-03-08%20at%203.36.26%20PM.png?raw=true"
                     alt="Family Tree"
                     style={{
                         width: '75%',
-                        height: '90px',
+                        height: '60px',
                         borderRadius: '60px',
-                        marginBottom: '20px',
+                        marginBottom: '2px',
                     }}
                 />
-
                 {/* Display the image instead of the text */}
                 <img
                     src="https://github.com/lmaali01/family-tree/blob/main/public/Screen%20Shot%202025-03-08%20at%202.45.01%20PM.png?raw=true"
                     alt="Family Tree"
                     style={{
                         width: '50%%',
-                        height: '80px',
+                        height: '50px',
                         borderRadius: '60px',
-                        marginBottom: '20px',
+                        marginBottom: '2px',
                     }}
                 />
                 {loading ? (
@@ -269,8 +267,8 @@ export default function FamilyPage() {
                         }}
                     >
                         <Tree
-                            lineWidth={'4px'}
-                            lineColor={'#f000af'}
+                            lineWidth={'2px'}
+                            lineColor={'#ffff00'}
                             lineBorderRadius={'60px'}
                             label={<CustomNode node={familyData[0]} onClick={handleNodeClick} />}
                             style={{
