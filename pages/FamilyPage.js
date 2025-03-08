@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Box, CircularProgress, Container, Typography, Paper } from '@mui/material';
 import dynamic from 'next/dynamic';
@@ -11,13 +11,15 @@ const TreeNode = dynamic(() => import('react-organizational-chart').then(mod => 
 const CustomNode = ({ node, onClick }) => (
     <Paper
         style={{
-            backgroundColor: '#fffaaa', // Soft blue color for cards
-            padding: '8px 16px', // Smaller padding to make the card smaller
-            borderRadius: '8px',
+            backgroundColor: '#afdafd', // White background for nodes
+            padding: '6px 12px', // Reduced padding to make nodes smaller
+            borderRadius: '20px',
             boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
             textAlign: 'center',
             cursor: 'pointer',
-            fontFamily: 'Eskander, Arial, sans-serif', // Apply Eskander Arabic font style
+            fontFamily: 'sans-serif', // Apply Eskander font style
+            color: '#333', // Dark text color
+            fontWeight: 'bold', // Make text bold
         }}
         onClick={() => onClick(node)}
     >
@@ -27,20 +29,31 @@ const CustomNode = ({ node, onClick }) => (
                 alt={node.name}
                 style={{
                     borderRadius: '50%',
-                    width: '60px', // Smaller image size
-                    height: '60px',
+                    width: '50px', // Smaller image size
+                    height: '50px',
                     objectFit: 'cover',
-                    marginBottom: '8px', // Adjust margin for smaller cards
+                    marginBottom: '6px', // Reduced space between image and text
                 }}
             />
         )}
+        <img
+            src="https://cdn-icons-png.flaticon.com/512/2815/2815428.png"
+            alt="Icon"
+            style={{
+                width: '24px', // Smaller icon
+                height: '24px',
+                objectFit: 'contain',
+                marginBottom: '6px', // Space between the image and the text
+            }}
+        />
         <Typography
             variant="body2"
             style={{
-                fontWeight: 'bold',
+                fontWeight: 'bold', // Bold text
                 color: '#333',
-                fontSize: '14px', // Smaller font size
+                fontSize: '18px', // Smaller font size for compact nodes
                 lineHeight: '1.2',
+                fontFamily: 'revert-layer'
             }}
         >
             {node.name}
@@ -52,10 +65,12 @@ export default function FamilyPage() {
     const [familyData, setFamilyData] = useState([]);
     const [allFamilyData, setAllFamilyData] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [thirdParent, setThirdParent] = useState(true); 
-    const [expandedNodes, setExpandedNodes] = useState(new Set()); // Track which nodes are expanded
-    const [showChildren, setShowChildren] = useState({}); // Track the visibility of children nodes
+    const [expandedNodes, setExpandedNodes] = useState(new Set()); // Track expanded nodes
+    const [showChildren, setShowChildren] = useState({}); // Track visibility of children nodes
     const [selectedNode, setSelectedNode] = useState(null);
+
+    const containerRef = useRef(null); // Ref for container
+    const [containerWidth, setContainerWidth] = useState(0);
 
     useEffect(() => {
         // Load the Eskander font only in the browser (client-side)
@@ -66,17 +81,33 @@ export default function FamilyPage() {
             document.head.appendChild(link);
         };
         loadFont();
+
+        // Apply Eskander font to the body element
+        document.body.style.fontFamily = 'Eskander, Arial, sans-serif';
+       
         fetchFamilyData();
+
+        // Resize listener
+        const handleResize = () => {
+            if (containerRef.current) {
+                setContainerWidth(containerRef.current.offsetWidth);
+            }
+        };
+
+        // Set initial width
+        handleResize();
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
-    
+
     const fetchFamilyData = async () => {
         setLoading(true);
         const { data, error } = await supabase.from('family_tree').select('*');
         if (error) {
             console.error(error);
         } else {
-            console.log(data);
-            data.sort((a, b) => a.id - b.id);  // Sort data by id
+            data.sort((a, b) => a.id - b.id);
             const formattedData = formatTreeData(data);
             setFamilyData(formattedData);
             setAllFamilyData(formattedData);
@@ -86,7 +117,6 @@ export default function FamilyPage() {
 
     const formatTreeData = (data) => {
         if (!Array.isArray(data)) return [];
-
         const map = new Map();
         data.forEach((item) => {
             map.set(item.id, { ...item, children: [] });
@@ -102,40 +132,65 @@ export default function FamilyPage() {
                 tree.push(map.get(item.id));
             }
         });
-
         return tree;
     };
 
-    const renderTree = (nodes) => {
+    const renderTree = (nodes, parentId = null) => {
         return nodes.map((node) => {
             const isExpanded = showChildren[node.id];
+            const isSibling = parentId === node.parentid;
+
             return (
                 <TreeNode key={node.id} label={<CustomNode node={node} onClick={handleNodeClick} />}>
-                    {isExpanded && node.children && node.children.length > 0 && renderTree(node.children)}
+                    {/* Render children only if the node is expanded */}
+                    {isExpanded && node.children && node.children.length > 0 && renderTree(node.children, node.id)}
                 </TreeNode>
             );
         });
     };
 
-    function getThirdParent(node) {
+    const handleNodeClick = (node) => {
+        // Reset familyData before updating it
+        setFamilyData([]);
 
-        console.log(`node: ${JSON.stringify(node)}`);
-        console.log(`parent_node: ${JSON.stringify(findNodeById(node.parentid, familyData))}`)
+        // Set the selected node to the clicked node
+        setSelectedNode(node);
 
+        // Hide siblings' children
+        setShowChildren((prev) => {
+            const newShowChildren = { ...prev };
+
+            // Toggle the clicked node's children visibility
+            newShowChildren[node.id] = !prev[node.id];
+
+            // Hide the children of all sibling nodes
+            if (node.parentid) {
+                const parentChildren = findNodeById(node.parentid, familyData)?.children || [];
+                parentChildren.forEach((sibling) => {
+                    if (sibling.id !== node.id) {
+                        newShowChildren[sibling.id] = false; // Hide siblings' children
+                    }
+                });
+            }
+
+            return newShowChildren;
+        });
+
+        // Get the family data to render (with the third parent logic if needed)
+        const nodesToRender = getThirdParent(node);
+        setFamilyData(nodesToRender);
+    };
+
+    const getThirdParent = (node) => {
         const firstParent = findNodeById(node.parentid, familyData);
-        if (!firstParent) return allFamilyData; // If no first parent, return an empty array
-
+        if (!firstParent) return allFamilyData;
         const secondParent = findNodeById(firstParent.parentid, familyData);
-        if (!secondParent) return allFamilyData; // If no second parent, return an empty array
-
+        if (!secondParent) return allFamilyData;
         const thirdParent = findNodeById(secondParent.parentid, familyData);
-        if (!thirdParent) return allFamilyData; // If no third parent, return an empty array
-
+        if (!thirdParent) return allFamilyData;
         thirdParent.parentid = null;
-        //setThirdParent(thirdParent);
-        return [thirdParent]; // Return third parent as an array
-    }
-
+        return [thirdParent];
+    };
 
     function findNodeById(id, data) {
         for (const parent of data) {
@@ -146,25 +201,6 @@ export default function FamilyPage() {
         return null;
     }
 
-    const handleNodeClick = (node) => {
-        // Reset familyData before updating it
-        setFamilyData([]);
-
-        // Get the third parent of the selected node
-        const nodesToRender = getThirdParent(node, allFamilyData);
-
-        // Set the selected node to the clicked node
-        setSelectedNode(node);
-
-        // Rebind the familyData with the third parent
-        setFamilyData(nodesToRender);
-
-        setShowChildren((prev) => ({
-            ...prev,
-            [node.id]: !prev[node.id], // Toggle visibility of the clicked node's children
-        }));
-    };
-
     return (
         <Container>
             <Box
@@ -173,34 +209,75 @@ export default function FamilyPage() {
                 alignItems="center"
                 flexDirection="column"
                 py={4}
+                style={{
+                    backgroundImage: 'url("https://img.freepik.com/premium-photo/al-aqsa-mosque-islamic-shrine-located-temple-mount-jerusalem-israel-realistic-3d-background_524159-3927.jpg?w=1480")', // Reference the image from the public folder
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    height: 'auto',
+                    with:'100%',
+                    position: 'relative',
+                    textAlign: 'center',
+                    padding: '10px',
+                }}
             >
-                <Typography variant="h4" gutterBottom style={{ fontFamily: 'Eskander, Arial, sans-serif' }}>
-                    شجره عائله ال داوود بيت محسير
-                </Typography>
+                {/* Add a dark overlay to reduce opacity of the background image */}
+                <Box
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)', // 50% opacity dark overlay
+                        zIndex: -1,
+                    }}
+                />
+
+                <img
+                    src="https://github.com/lmaali01/family-tree/blob/main/public/Screen%20Shot%202025-03-08%20at%203.36.26%20PM.png?raw=true"
+                    alt="Family Tree"
+                    style={{
+                        width: '75%',
+                        height: '90px',
+                        borderRadius: '60px',
+                        marginBottom: '20px',
+                    }}
+                />
+
+                {/* Display the image instead of the text */}
+                <img
+                    src="https://github.com/lmaali01/family-tree/blob/main/public/Screen%20Shot%202025-03-08%20at%202.45.01%20PM.png?raw=true"
+                    alt="Family Tree"
+                    style={{
+                        width: '50%%',
+                        height: '80px',
+                        borderRadius: '60px',
+                        marginBottom: '20px',
+                    }}
+                />
                 {loading ? (
                     <CircularProgress />
                 ) : familyData.length > 0 ? (
                     <Box
+                        ref={containerRef}
                         sx={{
                             width: '100%',
                             height: '80vh',
                             display: 'flex',
                             justifyContent: 'center',
-                            overflow: 'auto',
                             padding: 2,
                         }}
                     >
                         <Tree
-                            lineWidth={'2px'}
-                            lineColor={'#0A74DA'}
-                            lineBorderRadius={'10px'}
+                            lineWidth={'4px'}
+                            lineColor={'#f000af'}
+                            lineBorderRadius={'60px'}
                             label={<CustomNode node={familyData[0]} onClick={handleNodeClick} />}
                             style={{
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                marginBottom: '10px',
-                                width: '50%',
+                                width: containerWidth * 0.8, // Dynamically set width based on container size
                                 flexDirection: 'column',
                             }}
                         >
