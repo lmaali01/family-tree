@@ -88,18 +88,6 @@ export default function FamilyPage() {
        
         fetchFamilyData();
 
-        // Resize listener
-        const handleResize = () => {
-            if (containerRef.current) {
-                setContainerWidth(containerRef.current.offsetWidth);
-            }
-        };
-
-        // Set initial width
-        handleResize();
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     const fetchFamilyData = async () => {
